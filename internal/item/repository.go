@@ -26,7 +26,7 @@ func (repo Repository) Find(query model.RequestFindItem) ([]model.Item, error) {
 	db := repo.Database
 
 	if statuses := query.Statuses; len(statuses) > 0 {
-		db = db.Where("status IN ?", statuses)
+		db = db.Where("status = ?", statuses)
 	}
 
 	if err := db.Find(&results).Error; err != nil {
