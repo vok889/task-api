@@ -3,8 +3,8 @@ package model
 import "task-api/internal/constant"
 
 type RequestItem struct {
-	Title    string
-	Price    float64
+	Title    string  `binding:"required"`
+	Price    float64 `binding:"gte=5"`
 	Quantity uint
 }
 
