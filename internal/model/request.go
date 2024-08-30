@@ -15,3 +15,8 @@ type RequestFindItem struct {
 type RequestUpdateItem struct {
 	Status constant.ItemStatus
 }
+
+type RequestLogin struct {
+	Username string `binding:"required"`
+	Password string `binding:"required"`
+}
