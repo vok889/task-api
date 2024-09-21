@@ -55,7 +55,7 @@ func getValidationErrors(err error) []ApiError {
 
 func (controller Controller) CreateItem(ctx *gin.Context) {
 	// Bind
-	var request model.RequestItem
+	var request model.RequestCreateItem
 
 	if err := ctx.Bind(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -64,8 +64,13 @@ func (controller Controller) CreateItem(ctx *gin.Context) {
 		return
 	}
 
+	// get owner_id from context
+	//ownerIdFloat := ctx.MustGet("uid").(float64)
+	//ownerId := int(ownerIdFloat)
+	ownerId := 1
+
 	// Create item
-	item, err := controller.Service.Create(request)
+	item, err := controller.Service.Create(request, ownerId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": err.Error(),
@@ -106,10 +111,68 @@ func (controller Controller) FindItems(ctx *gin.Context) {
 	})
 }
 
-func (controller Controller) UpdateItemStatus(ctx *gin.Context) {
+func (controller Controller) FindItemByID(ctx *gin.Context) {
+	// Path param
+	id, _ := strconv.Atoi(ctx.Param("id"))
+
+	// Find item
+	item, err := controller.Service.FindByID(uint(id))
+	if err != nil {
+		// Check if the error is because the record was not found
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"message": "Item not found",
+			})
+			return
+		}
+
+		// Other types of errors (e.g., database issues)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error finding item: " + err.Error(),
+		})
+		return
+	}
+
+	// Successfully found item
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": item,
+	})
+}
+
+func (controller Controller) UpdateItem(ctx *gin.Context) {
 	// Bind
 	var (
 		request model.RequestUpdateItem
+	)
+
+	if err := ctx.Bind(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": err,
+		})
+		return
+	}
+
+	// Path param
+	id, _ := strconv.Atoi(ctx.Param("id"))
+
+	// Update item
+	item, err := controller.Service.UpdateItem(uint(id), request)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": err,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"data": item,
+	})
+}
+
+func (controller Controller) UpdateItemStatus(ctx *gin.Context) {
+	// Bind
+	var (
+		request model.RequestPatchItemStatus
 	)
 
 	if err := ctx.Bind(&request); err != nil {
@@ -133,5 +196,22 @@ func (controller Controller) UpdateItemStatus(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"data": item,
+	})
+}
+
+func (controller Controller) DeleteItem(ctx *gin.Context) {
+	// Path param
+	id, _ := strconv.Atoi(ctx.Param("id"))
+
+	// Delete
+	if err := controller.Service.Delete(uint(id)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": err,
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Deleted",
 	})
 }

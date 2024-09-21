@@ -2,11 +2,17 @@ package main
 
 import (
 	"fmt"
-	"task-api/internal/user"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
 func main() {
-	password, err := user.HashPassword("secret")
+	password, err := hashPassword("secret")
 	if err != nil {
 		fmt.Println("error=", err.Error)
 	}

@@ -53,3 +53,30 @@ func (controller Controller) Login(ctx *gin.Context) {
 	})
 
 }
+
+func (controller Controller) Register(ctx *gin.Context) {
+	var (
+		request model.RequestRegister
+	)
+
+	if err := ctx.Bind(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	fmt.Println("CTR || ", request)
+
+	err := controller.Service.Register(request)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "register succeed",
+	})
+}

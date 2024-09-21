@@ -2,12 +2,18 @@ package auth
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func CreateToken(username string, secret string) (string, error) {
+func CreateToken(username string) (string, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("JWT_SECRET is not set")
+	}
+
 	var t *jwt.Token // create variable t of type *jwt.Token
 
 	t = jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{ //create header and payload

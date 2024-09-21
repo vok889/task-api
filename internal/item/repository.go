@@ -25,7 +25,7 @@ func (repo Repository) Find(query model.RequestFindItem) ([]model.Item, error) {
 
 	db := repo.Database
 
-	if statuses := query.Statuses; len(statuses) > 0 {
+	if statuses := query.Status; len(statuses) > 0 {
 		db = db.Where("status = ?", statuses)
 	}
 
@@ -48,4 +48,8 @@ func (repo Repository) FindByID(id uint) (model.Item, error) {
 
 func (repo Repository) Replace(item model.Item) error {
 	return repo.Database.Model(&item).Updates(item).Error
+}
+
+func (repo Repository) Delete(id uint) error {
+	return repo.Database.Delete(&model.Item{}, id).Error
 }

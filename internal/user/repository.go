@@ -28,3 +28,12 @@ func (repo Repository) FindOneByUsername(username string) (model.User, error) {
 
 	return result, nil
 }
+
+func (repo Repository) Register(user *model.User) error {
+	db := repo.Database
+	if err := db.Create(user).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

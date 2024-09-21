@@ -29,13 +29,10 @@ import (
 // DELETE 	/items/:id
 
 func main() {
-	var port string = os.Getenv("PORT")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	fmt.Println("PORT: ", port)
-	fmt.Println("TEST: ", os.Getenv("TEST"))
 
 	// Connect database
 	db, err := gorm.Open(
@@ -49,11 +46,28 @@ func main() {
 
 	// Controller
 	controller := item.NewController(db)
+	userController := user.NewController(db, "secret")
 
-	// Router
+	// verifyToken middleware
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("JWT_SECRET is not set")
+	}
+	verifyToken := auth.Guard(secret)
+
+	// Router setup
 	r := gin.Default()
-
 	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{
+		"http://localhost:8000",
+		"http://127.0.0.1:8000",
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+	}
+
+	config.AllowCredentials = true
+	r.Use(cors.New(config))
+
 	// frontend URL
 	config.AllowOrigins = []string{
 		"http://localhost:8000",
@@ -71,6 +85,16 @@ func main() {
 		}
 		c.JSON(http.StatusOK, gin.H{"version": version})
 	})
+
+	r.POST("/items", verifyToken, controller.CreateItem)
+	r.GET("/items", verifyToken, controller.FindItems)
+	r.GET("/items/:id", verifyToken, controller.FindItemByID)
+	r.PUT("/items/:id", verifyToken, controller.UpdateItem)
+	r.PATCH("/items/:id", verifyToken, controller.UpdateItemStatus)
+	r.DELETE("/items/:id", verifyToken, controller.DeleteItem)
+	r.POST("/login", userController.Login)
+	r.POST("/register", userController.Register)
+
 	r.GET("/test", func(ctx *gin.Context) {
 		fmt.Println("------test------")
 		value, exists := ctx.Get("example2")
@@ -86,52 +110,47 @@ func main() {
 		ctx.JSON(210, "test response")
 	})
 
-	userController := user.NewController(db, os.Getenv("JWT_SECRET"))
-	r.POST("/login", userController.Login)
-
-	// Register router
-	items := r.Group("/items")
-	//item.Use(mylog.Logger2())
-	// item.Use(auth.BasicAuth([]auth.Credential{
-	// 	{"admin", "secret"},
-	// 	{"admin2", "1234"},
-	// }))
-	items.Use(auth.Guard(os.Getenv("JWT_SECRET")))
-	{
-		items.POST("", controller.CreateItem)
-		items.GET("", controller.FindItems)
-		items.PATCH("/:id", controller.UpdateItemStatus)
-	}
-
-	// Start server
-	fmt.Printf("RUN: %v,%T\n", port, port)
-	// if err := r.Run(":" + os.Getenv("PORT")); err != nil {
-	// 	log.Panic(err)
+	// // Register router
+	// items := r.Group("/items")
+	// //item.Use(mylog.Logger2())
+	// // item.Use(auth.BasicAuth([]auth.Credential{
+	// // 	{"admin", "secret"},
+	// // 	{"admin2", "1234"},
+	// // }))
+	// items.Use(auth.Guard(os.Getenv("JWT_SECRET")))
+	// {
+	// 	items.POST("", controller.CreateItem)
+	// 	items.GET("", controller.FindItems)
+	// 	items.PATCH("/:id", controller.UpdateItemStatus)
 	// }
 
-	// for non-windows server
-	//endless.DefaultHammerTime = 10 * time.Second
-	// if err := endless.ListenAndServe(":8081", r); err != nil {
-	// 	log.Panic(err)
-	// }
+	// // Start server
+	// fmt.Printf("RUN: %v,%T\n", port, port)
+	// // if err := r.Run(":" + os.Getenv("PORT")); err != nil {
+	// // 	log.Panic(err)
+	// // }
 
-	// for windows server
+	// // for non-windows server
+	// //endless.DefaultHammerTime = 10 * time.Second
+	// // if err := endless.ListenAndServe(":8081", r); err != nil {
+	// // 	log.Panic(err)
+	// // }
+
+	// Graceful shutdown setup
 	srv := &http.Server{
-		Addr:    ":2024",
-		Handler: r.Handler(),
+		Addr:    ":" + getPort(),
+		Handler: r,
 	}
+
+	// Start server in a goroutine
 	go func() {
-		// service connections
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
+
 	// Wait for interrupt signal to gracefully shutdown the server with
-	// a timeout of 5 seconds.
 	quit := make(chan os.Signal, 1)
-	// kill (no param) default send syscall.SIGTERM
-	// kill -2 is syscall.SIGINT
-	// kill -9 is syscall. SIGKILL but can"t be catch, so don't need add it
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutdown Server ...")
@@ -151,6 +170,14 @@ func main() {
 
 func Logger() {
 	panic("unimplemented")
+}
+
+func getPort() string {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Default port if not set
+	}
+	return port
 }
 
 type GooseDBVersion struct {
